@@ -16,41 +16,42 @@ class FileExplorer(ThemedTk):
         self.set_theme("equilux")
 
         self.title("File Explorer")
-        self.geometry("1200x1200")
+        self.geometry("1200x800")
 
         self.current_path = os.path.expanduser("~")
         self.history = [self.current_path]
         self.history_index = 0
-
-        # # Load icons
-        # self.folder_icon = ImageTk.PhotoImage(Image.open("E:\\Projects\\icons\\folder.png").resize((16, 16)))
-        # self.file_icon = ImageTk.PhotoImage(Image.open("E:\\Projects\\icons\\file.png").resize((16, 16)))
 
         # Create navigation bar
         self.nav_frame = ttk.Frame(self)
         self.nav_frame.pack(fill=tk.X)
 
         self.back_button = ttk.Button(self.nav_frame, text="<-", command=self.go_back)
-        self.back_button.pack(side=tk.LEFT,padx=0)
+        self.back_button.pack(side=tk.LEFT, padx=5)
 
         self.search_var = tk.StringVar()
         self.search_entry = ttk.Entry(self.nav_frame, textvariable=self.search_var, width=50)
-        self.search_entry.pack(side=tk.LEFT, padx=0)
+        self.search_entry.pack(side=tk.LEFT, padx=5)
         self.search_entry.bind("<Return>", self.search)
         
         self.forward_button = ttk.Button(self.nav_frame, text="->", command=self.go_forward)
-        self.forward_button.pack(side=tk.LEFT,padx=0)
+        self.forward_button.pack(side=tk.LEFT, padx=5)
 
-        # Create the main frames
-        self.side_frame = ttk.Frame(self)
-        self.side_frame.pack(side=tk.LEFT, fill=tk.Y)
+        # Create a PanedWindow for resizable sidebar
+        self.paned_window = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
+        self.paned_window.pack(fill=tk.BOTH, expand=True)
 
-        self.main_frame = ttk.Frame(self)
-        self.main_frame.pack(side=tk.RIGHT, expand=True, fill=tk.BOTH)
+        # Create the resizable sidebar
+        self.side_frame = ttk.Frame(self.paned_window, width=250)  # Initial width
+        self.paned_window.add(self.side_frame, weight=1)  # Make resizable
+
+        # Create the main frame
+        self.main_frame = ttk.Frame(self.paned_window)
+        self.paned_window.add(self.main_frame, weight=4)  # More weight to main frame
 
         # Sidebar tree
         self.side_tree = ttk.Treeview(self.side_frame, columns=("fullpath", "type"), show="tree")
-        self.side_tree.pack(side=tk.LEFT, fill=tk.Y, expand=True)
+        self.side_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.side_tree.heading("#0", text="Quick Access")
         self.side_tree.bind("<<TreeviewSelect>>", self.on_side_select)
 
@@ -91,11 +92,11 @@ class FileExplorer(ThemedTk):
     def populate_side_tree(self):
         # Add Quick Access items
         quick_access = {
-            "Desktop": os.path.join(os.path.expanduser("~"), "OneDrive\Desktop"),
-            "Documents": os.path.join(os.path.expanduser("~"), "OneDrive\Documents"),
+            "Desktop": os.path.join(os.path.expanduser("~"), "OneDrive\\Desktop"),
+            "Documents": os.path.join(os.path.expanduser("~"), "OneDrive\\Documents"),
             "Downloads": os.path.join(os.path.expanduser("~"), "Downloads"),
             "Music": os.path.join(os.path.expanduser("~"), "Music"),
-            "Pictures": os.path.join(os.path.expanduser("~"), "OneDrive\Pictures"),
+            "Pictures": os.path.join(os.path.expanduser("~"), "OneDrive\\Pictures"),
             "Videos": os.path.join(os.path.expanduser("~"), "Videos")
         }
 
@@ -118,11 +119,9 @@ class FileExplorer(ThemedTk):
             if os.path.isdir(item_path):
                 item_type = "Folder"
                 item_size = ""
-                # icon = self.folder_icon
             else:
                 item_type = "File"
                 item_size = self.get_file_size(item_path)
-                # icon = self.file_icon
             self.main_tree.insert("", "end", values=(item, item_type, item_size))
 
     def get_file_size(self, path):
@@ -177,12 +176,10 @@ class FileExplorer(ThemedTk):
             if os.path.isdir(item_path):
                 item_type = "Folder"
                 item_size = ""
-                icon = self.folder_icon
             else:
                 item_type = "File"
                 item_size = self.get_file_size(item_path)
-                icon = self.file_icon
-            self.main_tree.insert("", "end", values=(item, item_type, item_size), image=icon)
+            self.main_tree.insert("", "end", values=(item, item_type, item_size))
 
     def go_back(self):
         if self.history_index > 0:
