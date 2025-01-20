@@ -3,7 +3,6 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
 from tkinter import messagebox
-from PIL import Image, ImageTk
 from ttkthemes import ThemedTk
 
 os.system("cls")
@@ -50,7 +49,7 @@ class FileExplorer(ThemedTk):
         self.paned_window.add(self.main_frame, weight=4)  # More weight to main frame
 
         # Sidebar tree
-        self.side_tree = ttk.Treeview(self.side_frame, columns=("fullpath", "type"), show="tree")
+        self.side_tree = ttk.Treeview(self.side_frame, show="tree")
         self.side_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         self.side_tree.heading("#0", text="Quick Access")
         self.side_tree.bind("<<TreeviewSelect>>", self.on_side_select)
@@ -61,11 +60,21 @@ class FileExplorer(ThemedTk):
         self.side_scroll.pack(side=tk.RIGHT, fill=tk.Y)
 
         # Main tree for files and folders
-        self.main_tree = ttk.Treeview(self.main_frame, columns=("Name", "Type", "Size"), show="headings")
+        self.main_tree = ttk.Treeview(
+            self.main_frame, 
+            columns=("Type", "Size"), 
+            show="tree headings"
+        )
         self.main_tree.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-        self.main_tree.heading("Name", text="Name")
-        self.main_tree.heading("Type", text="Type")
-        self.main_tree.heading("Size", text="Size")
+        self.main_tree.heading("#0", text="Name")  # Treeview column
+        self.main_tree.heading("Type", text="Type", anchor=tk.CENTER)  # Align center
+        self.main_tree.heading("Size", text="Size", anchor=tk.CENTER)  # Align center
+
+        # Fix column widths and prevent shrinking
+        self.main_tree.column("#0", width=500, stretch=False)
+        self.main_tree.column("Type", width=150, anchor=tk.CENTER, stretch=False)
+        self.main_tree.column("Size", width=150, anchor=tk.CENTER, stretch=False)
+
         self.main_tree.bind("<Double-1>", self.on_double_click)
 
         # Scrollbar for the main tree
@@ -101,12 +110,12 @@ class FileExplorer(ThemedTk):
         }
 
         for name, path in quick_access.items():
-            self.side_tree.insert("", "end", text=name, values=(path, "directory"))
+            self.side_tree.insert("", "end", text=name)
 
         # Add drives
         drives = self.get_drives()
         for drive in drives:
-            self.side_tree.insert("", "end", text=drive, values=(drive, "drive"))
+            self.side_tree.insert("", "end", text=drive)
 
     def get_drives(self):
         return [f"{chr(d)}:\\" for d in range(65, 91) if os.path.exists(f"{chr(d)}:\\")]
@@ -122,7 +131,7 @@ class FileExplorer(ThemedTk):
             else:
                 item_type = "File"
                 item_size = self.get_file_size(item_path)
-            self.main_tree.insert("", "end", values=(item, item_type, item_size))
+            self.main_tree.insert("", "end", text=item, values=(item_type, item_size))
 
     def get_file_size(self, path):
         size = os.path.getsize(path)
@@ -140,17 +149,16 @@ class FileExplorer(ThemedTk):
 
     def on_side_select(self, event):
         selected_item = self.side_tree.selection()[0]
-        selected_path = self.side_tree.item(selected_item, "values")[0]
+        selected_path = self.side_tree.item(selected_item, "text")
         self.current_path = selected_path
         self.update_history(selected_path)
         self.populate_main_tree(selected_path)
 
     def on_double_click(self, event):
         selected_item = self.main_tree.selection()[0]
-        selected_item_values = self.main_tree.item(selected_item, "values")
-        selected_item_name = selected_item_values[0]
+        selected_item_text = self.main_tree.item(selected_item, "text")
 
-        new_path = os.path.join(self.current_path, selected_item_name)
+        new_path = os.path.join(self.current_path, selected_item_text)
         if os.path.isdir(new_path):
             self.current_path = new_path
             self.update_history(new_path)
@@ -179,7 +187,7 @@ class FileExplorer(ThemedTk):
             else:
                 item_type = "File"
                 item_size = self.get_file_size(item_path)
-            self.main_tree.insert("", "end", values=(item, item_type, item_size))
+            self.main_tree.insert("", "end", text=item, values=(item_type, item_size))
 
     def go_back(self):
         if self.history_index > 0:
