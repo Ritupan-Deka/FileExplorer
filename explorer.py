@@ -5,8 +5,6 @@ from tkinter import filedialog
 from tkinter import messagebox
 from ttkthemes import ThemedTk
 
-os.system("cls")
-
 class FileExplorer(ThemedTk):
     def __init__(self):
         super().__init__()
@@ -101,37 +99,41 @@ class FileExplorer(ThemedTk):
     def populate_side_tree(self):
         # Add Quick Access items
         quick_access = {
-            "Desktop": os.path.join(os.path.expanduser("~"), "OneDrive\\Desktop"),
-            "Documents": os.path.join(os.path.expanduser("~"), "OneDrive\\Documents"),
+            "Desktop": os.path.join(os.path.expanduser("~"), "OneDrive//Desktop"),
+            "Documents": os.path.join(os.path.expanduser("~"), "OneDrive//Documents"),
             "Downloads": os.path.join(os.path.expanduser("~"), "Downloads"),
             "Music": os.path.join(os.path.expanduser("~"), "Music"),
-            "Pictures": os.path.join(os.path.expanduser("~"), "OneDrive\\Pictures"),
+            "Pictures": os.path.join(os.path.expanduser("~"), "OneDrive//Pictures"),
             "Videos": os.path.join(os.path.expanduser("~"), "Videos")
         }
 
         for name, path in quick_access.items():
-            self.side_tree.insert("", "end", text=name)
+            if os.path.exists(path):
+                self.side_tree.insert("", "end", text=name, values=(path,))
 
         # Add drives
         drives = self.get_drives()
         for drive in drives:
-            self.side_tree.insert("", "end", text=drive)
+            self.side_tree.insert("", "end", text=drive, values=(drive,))
 
     def get_drives(self):
         return [f"{chr(d)}:\\" for d in range(65, 91) if os.path.exists(f"{chr(d)}:\\")]
 
     def populate_main_tree(self, path):
-        for item in self.main_tree.get_children():
-            self.main_tree.delete(item)
-        for item in os.listdir(path):
-            item_path = os.path.join(path, item)
-            if os.path.isdir(item_path):
-                item_type = "Folder"
-                item_size = ""
-            else:
-                item_type = "File"
-                item_size = self.get_file_size(item_path)
-            self.main_tree.insert("", "end", text=item, values=(item_type, item_size))
+        try:
+            for item in self.main_tree.get_children():
+                self.main_tree.delete(item)
+            for item in os.listdir(path):
+                item_path = os.path.join(path, item)
+                if os.path.isdir(item_path):
+                    item_type = "Folder"
+                    item_size = ""
+                else:
+                    item_type = "File"
+                    item_size = self.get_file_size(item_path)
+                self.main_tree.insert("", "end", text=item, values=(item_type, item_size))
+        except Exception as e:
+            messagebox.showerror("Error", f"Cannot populate tree: {e}")
 
     def get_file_size(self, path):
         size = os.path.getsize(path)
@@ -149,10 +151,13 @@ class FileExplorer(ThemedTk):
 
     def on_side_select(self, event):
         selected_item = self.side_tree.selection()[0]
-        selected_path = self.side_tree.item(selected_item, "text")
-        self.current_path = selected_path
-        self.update_history(selected_path)
-        self.populate_main_tree(selected_path)
+        selected_path = self.side_tree.item(selected_item, "values")[0]
+        if os.path.exists(selected_path):
+            self.current_path = selected_path
+            self.update_history(selected_path)
+            self.populate_main_tree(selected_path)
+        else:
+            messagebox.showerror("Error", "Path does not exist")
 
     def on_double_click(self, event):
         selected_item = self.main_tree.selection()[0]
