@@ -4,6 +4,7 @@ from tkinter import ttk
 from tkinter import filedialog
 from tkinter import messagebox
 from ttkthemes import ThemedTk
+import threading
 
 class FileExplorer(ThemedTk):
     def __init__(self):
@@ -18,6 +19,7 @@ class FileExplorer(ThemedTk):
         self.current_path = os.path.expanduser("~")
         self.history = [self.current_path]
         self.history_index = 0
+        self.cache = {}
 
         # Create navigation bar
         self.nav_frame = ttk.Frame(self)
@@ -69,9 +71,9 @@ class FileExplorer(ThemedTk):
         self.main_tree.heading("Size", text="Size", anchor=tk.CENTER)  # Align center
 
         # Fix column widths and prevent shrinking
-        self.main_tree.column("#0", width=500, stretch=False)
-        self.main_tree.column("Type", width=150, anchor=tk.CENTER, stretch=False)
-        self.main_tree.column("Size", width=150, anchor=tk.CENTER, stretch=False)
+        self.main_tree.column("#0", width=250, stretch=False)
+        self.main_tree.column("Type", width=250, anchor=tk.CENTER, stretch=False)
+        self.main_tree.column("Size", width=250, anchor=tk.CENTER, stretch=False)
 
         self.main_tree.bind("<Double-1>", self.on_double_click)
 
@@ -120,20 +122,29 @@ class FileExplorer(ThemedTk):
         return [f"{chr(d)}:\\" for d in range(65, 91) if os.path.exists(f"{chr(d)}:\\")]
 
     def populate_main_tree(self, path):
-        try:
-            for item in self.main_tree.get_children():
-                self.main_tree.delete(item)
-            for item in os.listdir(path):
-                item_path = os.path.join(path, item)
-                if os.path.isdir(item_path):
-                    item_type = "Folder"
-                    item_size = ""
+        def worker():
+            try:
+                if path in self.cache:
+                    items = self.cache[path]
                 else:
-                    item_type = "File"
-                    item_size = self.get_file_size(item_path)
-                self.main_tree.insert("", "end", text=item, values=(item_type, item_size))
-        except Exception as e:
-            messagebox.showerror("Error", f"Cannot populate tree: {e}")
+                    items = os.listdir(path)
+                    self.cache[path] = items
+
+                for item in self.main_tree.get_children():
+                    self.main_tree.delete(item)
+                for item in items:
+                    item_path = os.path.join(path, item)
+                    if os.path.isdir(item_path):
+                        item_type = "Folder"
+                        item_size = ""
+                    else:
+                        item_type = "File"
+                        item_size = self.get_file_size(item_path)
+                    self.main_tree.insert("", "end", text=item, values=(item_type, item_size))
+            except Exception as e:
+                messagebox.showerror("Error", f"Cannot populate tree: {e}")
+
+        threading.Thread(target=worker).start()
 
     def get_file_size(self, path):
         size = os.path.getsize(path)
@@ -175,24 +186,29 @@ class FileExplorer(ThemedTk):
                 messagebox.showerror("Error", f"Cannot open file: {e}")
 
     def search(self, event):
-        query = self.search_var.get().lower()
-        matching_items = []
-        for item in os.listdir(self.current_path):
-            if query in item.lower():
-                matching_items.append(item)
-        
-        for item in self.main_tree.get_children():
-            self.main_tree.delete(item)
-        
-        for item in matching_items:
-            item_path = os.path.join(self.current_path, item)
-            if os.path.isdir(item_path):
-                item_type = "Folder"
-                item_size = ""
-            else:
-                item_type = "File"
-                item_size = self.get_file_size(item_path)
-            self.main_tree.insert("", "end", text=item, values=(item_type, item_size))
+        def worker():
+            query = self.search_var.get().lower()
+            matching_items = []
+
+            for root, dirs, files in os.walk(self.current_path):
+                for name in dirs + files:
+                    if query in name.lower():
+                        item_path = os.path.join(root, name)
+                        matching_items.append((name, item_path))
+
+            for item in self.main_tree.get_children():
+                self.main_tree.delete(item)
+
+            for name, item_path in matching_items:
+                if os.path.isdir(item_path):
+                    item_type = "Folder"
+                    item_size = ""
+                else:
+                    item_type = "File"
+                    item_size = self.get_file_size(item_path)
+                self.main_tree.insert("", "end", text=name, values=(item_type, item_size))
+
+        threading.Thread(target=worker).start()
 
     def go_back(self):
         if self.history_index > 0:
